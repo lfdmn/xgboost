@@ -29,7 +29,8 @@ USER_OPTIONS = {
     'use-s3':     (None, 'Build with S3 support', 0),
     'plugin-dense-parser': (None, 'Build dense parser plugin.', 0),
     # Python specific
-    'use-system-libxgboost': (None, 'Use libxgboost.so in system path.', 0)
+    'use-system-libxgboost': (None, 'Use libxgboost.so in system path.', 0),
+    'sysroot=': (None, 'Use different sysroot location for cross compilation.', '')
 }
 
 NEED_CLEAN_TREE = set()
@@ -239,7 +240,9 @@ class InstallLib(install_lib.install_lib):
 
         if USER_OPTIONS['use-system-libxgboost'][2] != 0:
             self.logger.info('Using system libxgboost.')
-            lib_path = os.path.join(sys.prefix, 'lib')
+            sysroot = USER_OPTIONS['sysroot='][2]
+            prefix = sysroot if len(sysroot) > 0 else sys.prefix
+            lib_path = os.path.join(prefix, 'lib')
             msg = 'use-system-libxgboost is specified, but ' + lib_name() + \
                 ' is not found in: ' + lib_path
             assert os.path.exists(os.path.join(lib_path, lib_name())), msg
@@ -292,12 +295,15 @@ class Install(install.install):  # pylint: disable=too-many-instance-attributes
 
         self.use_system_libxgboost = 0
 
+        self.sysroot = ""
+
     def run(self) -> None:
         # setuptools will configure the options according to user supplied command line
         # arguments, then here we propagate them into `USER_OPTIONS` for visibility to
         # other sub-commands like `build_ext`.
         for k, v in USER_OPTIONS.items():
             arg = k.replace('-', '_')
+            arg = arg.replace('=', '')
             if hasattr(self, arg):
                 USER_OPTIONS[k] = (v[0], v[1], getattr(self, arg))
         super().run()
